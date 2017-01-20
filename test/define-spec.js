@@ -1,75 +1,156 @@
 
-describe('Define', function() {
+describe('define', function() {
+
     beforeEach(function() {
         require.reset();
     });
 
     it('should be defined globally', function() {
-        expect(typeof define).not.toBe('undefined');
-        expect(typeof require).not.toBe('undefined');
+        expect(typeof define).toBe('function');
     });
 
-    it('should define factory modules', function() {
+    it('should allow defining factory modules', function() {
         define('dada/bar', function() {
             return {};
         });
     });
 
-    it('should define constant modules', function() {
+    it('should allow defining constant modules', function() {
         define('dada/bar', {});
     });
 
-    it('should require factory modules', function() {
-        var A = {};
-        define('dada/bar', function() {
-            return A;
+    describe("require", function() {
+      it('should be defined globally', function() {
+          expect(typeof require).toBe('function');
+      });
+
+      it('should allow requiring factory modules', function() {
+          var A = {};
+          define('dada/bar', function() {
+              return A;
+          });
+          require(['dada/bar'], function(A_) {
+              expect(A_).toBe(A);
+          });
+      });
+
+      it('should respect the order of required modules', function() {
+          var A = {}, B = {};
+          define('dada/bar', function() { return A; });
+          define('dada/foo', function() { return B; });
+
+          require(['dada/foo', 'dada/bar'], function(B_, A_) {
+              expect(A_).toBe(A);
+              expect(B_).toBe(B);
+          });
+
+          require(['dada/bar', 'dada/foo'], function(A_, B_) {
+              expect(A_).toBe(A);
+              expect(B_).toBe(B);
+          });
+      });
+
+      it('should allow requiring constant modules', function() {
+          var A = {};
+          define('dada/bar', A);
+          require(['dada/bar'], function(A_) {
+              expect(A_).toBe(A);
+          });
+      });
+
+      it('should require a package\'s main.js when the package is requested', function() {
+          require.config({
+              packages: ['dada']
+          });
+
+          var beenHere = false;
+
+          // pretend to be "main.js"
+          define('dada/main', function() {
+              beenHere = true;
+          });
+
+          require('dada');
+
+          expect(beenHere).toBe(true);
+      });
+
+      it('should require a package\'s configured main module when the package is requested', function() {
+          require.config({
+              packages: [
+                {
+                  name: 'dada',
+                  main: 'foo'
+                }
+              ]
+          });
+
+          var beenHere = false;
+
+          // pretend to be "main.js"
+          define('dada/foo', function() {
+              beenHere = true;
+          });
+
+          require('dada');
+
+          expect(beenHere).toBe(true);
+      });
+
+      it('should require a package main.js relative dependencies correctly', function() {
+          require.config({
+              packages: ['dada']
+          });
+
+          var foo = {};
+          var foo2;
+          define('dada/foo', function() { return foo; });
+
+          // pretend to be "main.js"
+          define('dada/main', ['./foo'], function(_foo) {
+              foo2 = _foo;
+          });
+
+          require('dada');
+
+          expect(foo2).toBe(foo);
+      });
+
+      describe('require#toUrl', function() {
+        it('should be defined in the global require function', function() {
+          expect(typeof require.toUrl).toBe('function');
         });
-        require(['dada/bar'], function(A_) {
-            expect(A_).toBe(A);
-        });
-    });
 
-    it('should respect the order of required modules', function() {
-        var A = {}, B = {};
-        define('dada/bar', function() { return A; });
-        define('dada/foo', function() { return B; });
+        it('should be defined in contextual require functions', function() {
+          define('foo', ['require'], function(contextualRequire) {
+            expect(typeof contextualRequire.toUrl).toBe('function');
+          });
 
-        require(['dada/foo', 'dada/bar'], function(B_, A_) {
-            expect(A_).toBe(A);
-            expect(B_).toBe(B);
+          require('foo');
         });
 
-        require(['dada/bar', 'dada/foo'], function(A_, B_) {
-            expect(A_).toBe(A);
-            expect(B_).toBe(B);
-        });
-    });
+        it('should convert a module id to the absolute path built with "baseUrl"', function() {
 
-    it('should require constant modules', function() {
-        var A = {};
-        define('dada/bar', A);
-        require(['dada/bar'], function(A_) {
-            expect(A_).toBe(A);
-        });
-    });
+          require.config({baseUrl: 'http://foo/bar'});
 
-    it('should require a package main.js relative dependencies correctly', function() {
-        require.config({
-            packages: ['dada']
+          expect(require.toUrl('a')).toBe('http://foo/bar/a');
         });
 
-        var foo = {};
-        var foo2;
-        define('dada/foo', function() { return foo; });
+        it('should convert a relative module id to the absolute path built with "baseUrl"', function() {
 
-        // pretend to be "main.js"
-        define('dada', ['./foo'], function(_foo) {
-            foo2 = _foo;
+          require.config({baseUrl: 'http://foo/bar'});
+
+          expect(require.toUrl('./a')).toBe('http://foo/bar/a');
         });
 
-        require('dada');
+        it('should convert a module id to the absolute path when there is no "baseUrl"', function() {
+          expect(require.toUrl('a')).toBe('a');
+        });
 
-        expect(foo2).toBe(foo);
+        it('should convert a relative module id to the absolute path when there is no "baseUrl"', function() {
+          expect(require.toUrl('./a')).toBe('a');
+        });
+      });
     });
 
     describe('Mapping', function() {
@@ -320,21 +401,55 @@ describe('Define', function() {
             expect(called).toBe(true);
         });
 
-        it('should call `plugin.load` passing to argument `require` a contextual `require` function', function() {
-            var A = {};
-            define('foo/a', A);
+        it('should call `plugin.load` passing to argument `require` a contextual `require` function ' +
+           'relative to the module requiring the amd plugin - the global require, when there\'s none', function() {
+            var topLevelRequire = require;
+            var A1 = {};
+            var A2 = {};
+            define('a', A2);
+            define('foo/a', A1);
             define('foo/b', function() {
                 return {
                     load: function(id, require, callback) {
                         expect(typeof require).toBe('function');
+                        expect(require).toBe(topLevelRequire);
+
                         require(['./a'], function(_A) {
-                            expect(_A).toBe(A);
+                            expect(_A).not.toBe(A1);
+                            expect(_A).toBe(A2);
                         });
                     }
                 }
             });
 
             require('foo/b!a');
+        });
+
+        it('should call `plugin.load` passing to argument `require` a contextual `require` function ' +
+           'relative to the module requiring the amd plugin', function() {
+            var topLevelRequire = require;
+            var A1 = {};
+            var A2 = {};
+
+            define('foo/a', A1);
+            define('foo/b', function() {
+                return {
+                    load: function(id, require, callback) {
+                        expect(typeof require).toBe('function');
+                        expect(require).not.toBe(topLevelRequire);
+
+                        require(['./a'], function(_A) {
+                            expect(_A).not.toBe(A1);
+                            expect(_A).toBe(A2);
+                        });
+                    }
+                }
+            });
+
+            define('bar/a', A2);
+            define('bar/b', ['foo/b!'], function() {});
+
+            require('bar/b');
         });
 
         it('should call `plugin.load` passing to argument `callback` a function', function() {
@@ -371,6 +486,6 @@ describe('Define', function() {
         });
     });
 
-    // protocol and / paths
-    // packages and main.js
+    // protocol and '/' paths
+    // packages/location
 });
