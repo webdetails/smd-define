@@ -1,6 +1,6 @@
 {
   "name": "define",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Yet Another Synchronous (A)MD JS Loader",
   "main": "define.js",
   "keywords": [
@@ -10,15 +10,17 @@
   ],
   "repository": {
     "type": "git",
-    "url":  "https://github.com/webdetails/smd-define.git"
+    "url": "https://github.com/webdetails/smd-define.git"
   },
   "devDependencies": {
-    "karma": "~0.10.4",
-    "karma-chrome-launcher": "~0.1.0",
-    "karma-html-reporter": "~0.1.1",
-    "karma-jasmine": "~0.1.3",
-    "jasmine-node": "~1.11.0"
+    "jasmine-core": "^2.5.2",
+    "jasmine-node": "~1.14.5",
+    "karma": "~1.4.0",
+    "karma-chrome-launcher": "~2.0.0",
+    "karma-html-reporter": "~0.2.7",
+    "karma-jasmine": "~1.1.0",
+    "requirejs": "~2.1"
   },
-  "author":  "WebDetails",
-  "license": "MPL-2"
+  "author": "WebDetails",
+  "license": "MPL-2.0"
 }
