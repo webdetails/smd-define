@@ -363,6 +363,71 @@ describe('define', function() {
             require('foo/bar');
             require('gugu/dada');
         });
+
+        it('should merge the top-level configs of a module', function() {
+            var A = {a: true};
+            var B = {b: true};
+            require.config({
+                config: {
+                    'foo/bar': A
+                }
+            });
+
+            require.config({
+                config: {
+                    'foo/bar': B
+                }
+            });
+
+            define('foo/bar', ['module'], function(module) {
+                expect(module.config()).toEqual({
+                  a: true,
+                  b: true
+                });
+            });
+
+            require('foo/bar');
+        });
+
+        it('should set a non-object config', function() {
+            require.config({
+                config: {
+                    'foo/bar': {}
+                }
+            });
+
+            require.config({
+                config: {
+                    'foo/bar': "A"
+                }
+            });
+
+            define('foo/bar', ['module'], function(module) {
+                expect(module.config()).toBe("A");
+            });
+
+            require('foo/bar');
+        });
+
+        it('should reset when given a null config', function() {
+            require.config({
+                config: {
+                    'foo/bar': {a: true}
+                }
+            });
+
+            require.config({
+                config: {
+                    'foo/bar': null
+                }
+            });
+
+            define('foo/bar', ['module'], function(module) {
+                expect(module.config()).toBe(null);
+            });
+
+            require('foo/bar');
+        });
     });
 
     describe('loader plugin module', function() {
